@@ -43,7 +43,7 @@ void MqttUdp::onNext(const TimerMsg &tm) {
   };
   case TIMER_CONNECT: {
     if (millis() > (_loopbackReceived + 2000)) {
-      WARN(" lost mqtt connection ");
+      WARN(" lost mqtt connection %s ",_host.c_str());
       connected = false;
       String s = "dst/";
       s += Sys::hostname();

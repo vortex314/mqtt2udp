@@ -108,6 +108,7 @@ public:
     incoming >> *newSource;
     return *newSource;
   }
+  const char* host();
 };
 
 int freeMemory();
