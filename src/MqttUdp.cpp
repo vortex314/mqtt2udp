@@ -7,7 +7,7 @@ WiFiUDP wifiUdp;
 MqttUdp::MqttUdp(String host, uint16_t port)
     : connected(false), incoming(20), outgoing(20),
       keepAliveTimer(TIMER_KEEP_ALIVE, 1000, true),
-      connectTimer(TIMER_CONNECT, 3000, true) {
+      connectTimer(TIMER_CONNECT, 5000, true) {
   INFO("constructor");
   _host = host;
   _port = port;
@@ -43,7 +43,7 @@ void MqttUdp::onNext(const TimerMsg &tm) {
   };
   case TIMER_CONNECT: {
     if (millis() > (_loopbackReceived + 2000)) {
-      WARN(" lost mqtt connection %s ",_host.c_str());
+      WARN(" lost mqtt connection %s ", _host.c_str());
       connected = false;
       String s = "dst/";
       s += Sys::hostname();
@@ -63,9 +63,9 @@ void MqttUdp::checkUdp() {
   int packetSize = wifiUdp.parsePacket();
   if (packetSize) {
     // receive incoming UDP packets
-    INFO("Received %d bytes from %s, port %d heap : %d time %lu ",
-                  packetSize, wifiUdp.remoteIP().toString().c_str(),
-                  wifiUdp.remotePort(), ESP.getFreeHeap(), millis());
+    INFO("Received %d bytes from %s, port %d heap : %d time %lu ", packetSize,
+         wifiUdp.remoteIP().toString().c_str(), wifiUdp.remotePort(),
+         ESP.getFreeHeap(), millis());
     int len = wifiUdp.read(_incomingPacket, sizeof(_incomingPacket));
     if (len > 0) {
       _incomingPacket[len] = 0;
@@ -98,26 +98,18 @@ void MqttUdp::observeOn(Thread &thread) {
 }
 
 void MqttUdp::recvUdp(String s) {
-  for (uint32_t i = 0; i < s.length(); i++) {
-    char c = s.charAt(i);
-    if ((c == '\n' || c == '\r')) {
-      if (rxdString.length() > 0) {
-        deserializeJson(rxd, rxdString);
-        JsonArray array = rxd.as<JsonArray>();
-        if (!array.isNull()) {
-          if (array[1].as<String>() == _loopbackTopic) {
-            _loopbackReceived = millis();
-            connected=true;
-          } else {
-            String topic = array[1];
-            emit({topic.substring(_hostPrefix.length()), array[2]});
-          }
-        }
-        rxdString = "";
+  if (s.length() > 0) {
+    deserializeJson(rxd, s);
+    JsonArray array = rxd.as<JsonArray>();
+    if (!array.isNull()) {
+      String topic = array[1];
+      if (array[1].as<String>() == _loopbackTopic) {
+        _loopbackReceived = millis();
+        connected = true;
+      } else {
+        String topic = array[1];
+        emit({topic.substring(_hostPrefix.length()), array[2]});
       }
-    } else {
-      if (rxdString.length() < 256)
-        rxdString += c;
     }
   }
 }
